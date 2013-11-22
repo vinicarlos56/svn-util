@@ -3,9 +3,7 @@ actual_base=$(basename $PWD)
 rm -R ~/svn-export/$actual_base 2> /dev/null
 
 project_name=$actual_base
-
-prev_release_path="^/tags/$prev_release_name"
-new_release_path="^/tags/$new_release_name"
+url_repositorio=$(svn info | grep "Raiz do Repositório" | sed  's/Raiz do Repositório: //g')
 
 while :
 do
@@ -39,14 +37,19 @@ if [ ! $new_release_name ] || [ ! $prev_release_name ]; then
 		i=$((i+1))	
 	done
 fi
+
 prev_release_path="^/tags/$prev_release_name"
 new_release_path="^/tags/$new_release_name"
+
 file_list=$(svn diff --summarize $new_release_path $prev_release_path | cut -c 9-)
-url_repositorio=$(svn info | grep "Raiz do Repositório" | sed  's/Raiz do Repositório: //g')
-tag_path=${new_release_path:1}
+relative_tag_path=${new_release_path:1}
+
 for file in $file_list
 do
-    f=${file/$url_repositorio$tag_path/}
+    f=${file/$url_repositorio$relative_tag_path/}
     f=${f:1}
-    test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && svn export $file "$HOME/svn-export/$actual_base/$f" 
+
+    if  [ -n "$f" ]; then # if the string is not null
+        test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && svn export $file "$HOME/svn-export/$actual_base/$f" 
+    fi
 done
