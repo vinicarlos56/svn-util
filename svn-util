@@ -50,6 +50,6 @@ do
     f=${f:1}
 
     if  [ -n "$f" ]; then # if the string is not null
-        test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && svn export $file "$HOME/svn-export/$actual_base/$f" 
+        test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && (svn export $file "$HOME/svn-export/$actual_base/$f" 2> /dev/null)
     fi
 done
