@@ -1,47 +1,52 @@
 #!/bin/bash
-#
-# rm /home/carlos/exportar/* -R
 actual_base=$(basename $PWD)
-# 
-# echo $actual_base
-# exit 1
-
-# file_list=$(svn status $PWD | cut -c 9-)
-# 
-# for file in $file_list
-# do
-#     test -d "$file" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $file)" && cp $file "$HOME/svn-export/$actual_base/$file"
-# done
-
-# if [ $1 -eq 'export-tag' ]; then
+rm -R ~/svn-export/$actual_base 2> /dev/null
 
 project_name=$actual_base
-server_root="http://obama/svn"
-project_server_path="$server_root/$project_name"
 
-prev_release_name='release_20130927_02'
-new_release_name='release_20130927_01'
+prev_release_path="^/tags/$prev_release_name"
+new_release_path="^/tags/$new_release_name"
 
-prev_release_path="$project_server_path/tags/$prev_release_name"
-new_release_path="$project_server_path/tags/$new_release_name"
-
-file_list=$(svn diff --summarize $prev_release_path $new_release_path | cut -c 9-)
-
-for file in $file_list
+while :
 do
-    file=${file/$prev_release_path/}
-    file=${file:1}
-
-    if  [ -n "$file" ] && [ -s $file ]; then #if the string is not null and the file exists
-	test -d "$file" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $file)" && cp $file "$HOME/svn-export/$actual_base/$file" 
-    else
-	exit 1
-    fi
+    case "$1" in
+        -f | --rev-from)
+	        prev_release_name=$2
+	        shift 2
+	        ;;
+        -t | --rev-to)
+	        new_release_name=$2
+	        shift 2
+		;;
+	*)
+		break
+		;;
+    esac
 done
 
-# else
-
-#     echo 'comando não encontrado'
-#     exit 1
-
-# fi
+if [ ! $new_release_name ] || [ ! $prev_release_name ]; then 
+	i=0
+	tags=$(svn ls ^/tags | sort -r)
+	for file in $tags
+	do
+		if [ "$i" -eq 0 ]  && [ ! $new_release_name ]; then
+			new_release_name=${file%?}	
+		fi
+		if [ "$i" -eq 1 ] && [ ! $prev_release_name ]; then
+			prev_release_name=${file%?}
+			break
+		fi
+		i=$((i+1))	
+	done
+fi
+prev_release_path="^/tags/$prev_release_name"
+new_release_path="^/tags/$new_release_name"
+file_list=$(svn diff --summarize $new_release_path $prev_release_path | cut -c 9-)
+url_repositorio=$(svn info | grep "Raiz do Repositório" | sed  's/Raiz do Repositório: //g')
+tag_path=${new_release_path:1}
+for file in $file_list
+do
+    f=${file/$url_repositorio$tag_path/}
+    f=${f:1}
+    test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && svn export $file "$HOME/svn-export/$actual_base/$f" 
+done
