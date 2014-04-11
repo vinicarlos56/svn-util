@@ -1,13 +1,16 @@
 #!/bin/bash
-actual_base=$(basename $PWD)
-rm -R ~/svn-export/$actual_base 2> /dev/null
 
-project_name=$actual_base
-url_repositorio=$(svn info | grep "Raiz do Repositório" | sed  's/Raiz do Repositório: //g')
+# function export(){
+#     echo $1
+# }
 
 while :
 do
     case "$1" in
+        # generate-tag)
+        #     export $2
+	    #     shift 2
+        #     ;;
         -f | --rev-from)
 	        prev_release_name=$2
 	        shift 2
@@ -21,6 +24,16 @@ do
 		;;
     esac
 done
+
+# exit
+
+actual_base=$(basename $PWD)
+rm -R ~/svn-export/$actual_base 2> /dev/null
+
+project_name=$actual_base
+url_repositorio=$(svn info | grep "Raiz do Repositório" | sed  's/Raiz do Repositório: //g')
+
+
 
 if [ ! $new_release_name ] || [ ! $prev_release_name ]; then 
 	i=0
@@ -50,6 +63,9 @@ do
     f=${f:1}
 
     if  [ -n "$f" ]; then # if the string is not null
-        test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && (svn export $file "$HOME/svn-export/$actual_base/$f" 2> /dev/null)
+        home_aux=${HOME}
+        path="s/${home_aux//\//\\/}\/svn\-export\/$actual_base\///g"
+        test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && \
+            (svn export $file "$HOME/svn-export/$actual_base/$f" | grep 'A' | sed $path)
     fi
 done
