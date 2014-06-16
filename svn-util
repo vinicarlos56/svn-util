@@ -16,6 +16,10 @@ do
 	        new_release_name=$2
 	        shift 2
 		;;
+	-p | --pattern)
+	        pattern=$2
+	        shift 2
+		;;
 	*)
 		break
 		;;
@@ -24,7 +28,11 @@ done
 
 if [ ! $new_release_name ] || [ ! $prev_release_name ]; then 
 	i=0
-	tags=$(svn ls ^/tags | sort -r)
+	if [ ! $pattern ]; then
+		tags=$(svn ls ^/tags | sort -r)
+	else
+		tags=$(svn ls ^/tags | grep $pattern | sort -r)
+	fi
 	for file in $tags
 	do
 		if [ "$i" -eq 0 ]  && [ ! $new_release_name ]; then
@@ -41,15 +49,18 @@ fi
 prev_release_path="^/tags/$prev_release_name"
 new_release_path="^/tags/$new_release_name"
 
-file_list=$(svn diff --summarize $new_release_path $prev_release_path | cut -c 9-)
-relative_tag_path=${new_release_path:1}
+file_list=$(svn diff --summarize $prev_release_path $new_release_path | grep "^[^D]" | cut -c 9-) 
+relative_tag_path=${prev_release_path:1}
 
 for file in $file_list
 do
     f=${file/$url_repositorio$relative_tag_path/}
     f=${f:1}
+    
+    temp=${new_release_path:2}
+    exp=$url_repositorio"/"$temp"/"$f
 
     if  [ -n "$f" ]; then # if the string is not null
-        test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && (svn export $file "$HOME/svn-export/$actual_base/$f" 2> /dev/null)
+        test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && (svn export $exp "$HOME/svn-export/$actual_base/$f" 2> /dev/null)
     fi
 done
