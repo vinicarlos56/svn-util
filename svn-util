@@ -1,82 +1,145 @@
 #!/bin/bash
 
-# function export(){
-#     echo $1
-# }
+trunk_path='trunk/implementacao/site'
+
+[[ $# -eq 0 ]] && com='export_diff' 
 
 while :
 do
     case "$1" in
-        # generate-tag)
-        #     export $2
-	    #     shift 2
-        #     ;;
+
+        generate-tag)
+            com="generate_tag"
+            shift
+            ;;
+
+        export-diff)
+            com="export_diff"
+            shift
+            ;;
+
+        --trunk-path)
+            trunk_path=$2
+            shift 2
+            ;;
+        
         -f | --rev-from)
-	        prev_release_name=$2
-	        shift 2
-	        ;;
+            prev_release_name=$2
+            shift 2
+            ;;
         -t | --rev-to)
-	        new_release_name=$2
-	        shift 2
-		;;
-	-p | --pattern)
-	        pattern=$2
-	        shift 2
-		;;
-	*)
-		break
-		;;
+            new_release_name=$2
+            shift 2
+            ;;
+        -p | --pattern)
+            pattern=$2
+            shift 2
+            ;;
+        *)
+        break
+        ;;
     esac
 done
 
-# exit
+function usage(){
+    echo 'Please select an option:'
+    echo 'Methods: '
+    echo '  export-diff [-f] [-t]'
+    echo '  generate-tag [--trunk-path]'
+}
 
-actual_base=$(basename $PWD)
-rm -R ~/svn-export/$actual_base 2> /dev/null
+function has_untagged_changes(){
 
-project_name=$actual_base
-url_repositorio=$(svn info | grep "Raiz do Repositório" | sed  's/Raiz do Repositório: //g')
+    out=$(svn diff --summarize ^/$trunk_path ^/tags/$1)
 
-
-
-if [ ! $new_release_name ] || [ ! $prev_release_name ]; then 
-	i=0
-	if [ ! $pattern ]; then
-		tags=$(svn ls ^/tags | sort -r)
-	else
-		tags=$(svn ls ^/tags | grep $pattern | sort -r)
-	fi
-	for file in $tags
-	do
-		if [ "$i" -eq 0 ]  && [ ! $new_release_name ]; then
-			new_release_name=${file%?}	
-		fi
-		if [ "$i" -eq 1 ] && [ ! $prev_release_name ]; then
-			prev_release_name=${file%?}
-			break
-		fi
-		i=$((i+1))	
-	done
-fi
-
-prev_release_path="^/tags/$prev_release_name"
-new_release_path="^/tags/$new_release_name"
-
-file_list=$(svn diff --summarize $prev_release_path $new_release_path | grep "^[^D]" | cut -c 9-) 
-relative_tag_path=${prev_release_path:1}
-
-for file in $file_list
-do
-    f=${file/$url_repositorio$relative_tag_path/}
-    f=${f:1}
-    
-    temp=${new_release_path:2}
-    exp=$url_repositorio"/"$temp"/"$f
-
-    if  [ -n "$f" ]; then # if the string is not null
-        home_aux=${HOME}
-        path="s/${home_aux//\//\\/}\/svn\-export\/$actual_base\///g"
-        test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && \
-            (svn export $exp "$HOME/svn-export/$actual_base/$f" | grep 'A' | sed $path)
+    if [ ! "$out" ]; then
+        return 1 
     fi
-done
+
+    return 0 
+
+}
+
+function generate_tag() {
+
+    tags_string=$(svn ls ^/tags | sort -r)
+
+    tags=(${tags_string//\//})
+
+    last_tag_date=$(echo ${tags[0]//release_/} | sed 's/\_[0-9]*/ /g')
+    last_tag_rev=$(echo ${tags[0]//release_/} | sed 's/[0-9]*\_/ /g')
+    current_date=$(date +"%Y%m%d")
+
+    if [[ $last_tag_date -eq $current_date  ]]; then
+        next_tag_rev=$(($last_tag_rev + 1))
+        next_tag_name=$current_date'_'$(printf '%02d' $next_tag_rev) 
+    else
+        next_tag_name=$current_date'_01' 
+    fi
+
+    if has_untagged_changes ${tags[0]}; then
+        echo "Possui alterações de acordo com a última tag: ${tags[0]}"
+        echo $(svn copy ^/$trunk_path ^/tags/release_$next_tag_name -m 'gerando tag')
+        exit
+    fi
+
+    echo "Não possui alterações de acordo com a última tag: ${tags[0]}"
+
+}
+
+
+function export_diff() {
+
+    actual_base=$(basename $PWD)
+    rm -R ~/svn-export/$actual_base 2> /dev/null
+
+    project_name=$actual_base
+    url_repositorio=$(svn info | grep "Raiz do Repositório" | sed  's/Raiz do Repositório: //g')
+
+
+
+    if [ ! $new_release_name ] || [ ! $prev_release_name ]; then 
+        i=0
+        if [ ! $pattern ]; then
+            tags=$(svn ls ^/tags | sort -r)
+        else
+            tags=$(svn ls ^/tags | grep $pattern | sort -r)
+        fi
+        for file in $tags
+        do
+            if [ "$i" -eq 0 ]  && [ ! $new_release_name ]; then
+                new_release_name=${file%?}	
+            fi
+            if [ "$i" -eq 1 ] && [ ! $prev_release_name ]; then
+                prev_release_name=${file%?}
+                break
+            fi
+            i=$((i+1))	
+        done
+    fi
+
+    prev_release_path="^/tags/$prev_release_name"
+    new_release_path="^/tags/$new_release_name"
+
+    file_list=$(svn diff --summarize $prev_release_path $new_release_path | grep "^[^D]" | cut -c 9-) 
+    relative_tag_path=${prev_release_path:1}
+
+    for file in $file_list
+    do
+        f=${file/$url_repositorio$relative_tag_path/}
+        f=${f:1}
+        
+        temp=${new_release_path:2}
+        exp=$url_repositorio"/"$temp"/"$f
+
+        if  [ -n "$f" ]; then # if the string is not null
+            home_aux=${HOME}
+            path="s/${home_aux//\//\\/}\/svn\-export\/$actual_base\///g"
+            test -d "$f" || mkdir -p "$HOME/svn-export/$actual_base/$(dirname $f)" && \
+                (svn export $exp "$HOME/svn-export/$actual_base/$f" | grep 'A' | sed $path)
+        fi
+    done
+}
+
+# Method Call
+$com 
