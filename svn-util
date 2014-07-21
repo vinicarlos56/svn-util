@@ -48,7 +48,7 @@ function usage(){
     echo '  generate-tag [--trunk-path]'
 }
 
-function has_untagged_changes(){
+function has_non_tagged_changes(){
 
     out=$(svn diff --summarize ^/$trunk_path ^/tags/$1)
 
@@ -77,7 +77,7 @@ function generate_tag() {
         next_tag_name=$current_date'_01' 
     fi
 
-    if has_untagged_changes ${tags[0]}; then
+    if has_non_tagged_changes ${tags[0]}; then
         echo "Possui alterações de acordo com a última tag: ${tags[0]}"
         echo $(svn copy ^/$trunk_path ^/tags/release_$next_tag_name -m 'gerando tag')
         exit
