@@ -62,12 +62,21 @@ function has_non_tagged_changes(){
 
 function generate_tag() {
 
-    tags_string=$(svn ls ^/tags | sort -r)
+    if [[ ! $pattern ]]; then
+        pattern='release_'
+    fi
+
+    tags_string=$(svn ls ^/tags | grep $pattern | sort -r)
+
+    if [[ ! $tags_string ]]; then
+        echo "Não foram encontradas tags, padrão: $pattern"
+        exit
+    fi
 
     tags=(${tags_string//\//})
 
-    last_tag_date=$(echo ${tags[0]//release_/} | sed 's/\_[0-9]*/ /g')
-    last_tag_rev=$(echo ${tags[0]//release_/} | sed 's/[0-9]*\_/ /g')
+    last_tag_date=$(echo ${tags[0]//$pattern/} | sed 's/\_[0-9]*/ /g')
+    last_tag_rev=$(echo ${tags[0]//$pattern/} | sed 's/[0-9]*\_/ /g')
     current_date=$(date +"%Y%m%d")
 
     if [[ $last_tag_date -eq $current_date  ]]; then
@@ -79,7 +88,7 @@ function generate_tag() {
 
     if has_non_tagged_changes ${tags[0]}; then
         echo "Possui alterações de acordo com a última tag: ${tags[0]}"
-        echo $(svn copy ^/$trunk_path ^/tags/release_$next_tag_name -m 'gerando tag')
+        echo $(svn copy ^/$trunk_path ^/tags/$pattern$next_tag_name -m 'gerando tag')
         exit
     fi
 
