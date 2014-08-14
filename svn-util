@@ -2,7 +2,7 @@
 
 trunk_path='trunk/implementacao/site'
 
-[[ $# -eq 0 ]] && com='export_diff' 
+[[ $# -eq 0 ]] && com='export_diff'
 
 while :
 do
@@ -22,7 +22,7 @@ do
             trunk_path=$2
             shift 2
             ;;
-        
+
         -f | --rev-from)
             prev_release_name=$2
             shift 2
@@ -30,6 +30,10 @@ do
         -t | --rev-to)
             new_release_name=$2
             shift 2
+            ;;
+        --help | -h)
+            com="usage"
+            shift
             ;;
         -p | --pattern)
             pattern=$2
@@ -44,8 +48,8 @@ done
 function usage(){
     echo 'Please select an option:'
     echo 'Methods: '
-    echo '  export-diff [-f] [-t]'
-    echo '  generate-tag [--trunk-path]'
+    echo '  export-diff [-f] [-t] [--pattern]'
+    echo '  generate-tag [--trunk-path] [--pattern]'
 }
 
 function has_non_tagged_changes(){
@@ -53,10 +57,10 @@ function has_non_tagged_changes(){
     out=$(svn diff --summarize ^/$trunk_path ^/tags/$1)
 
     if [ ! "$out" ]; then
-        return 1 
+        return 1
     fi
 
-    return 0 
+    return 0
 
 }
 
@@ -81,9 +85,9 @@ function generate_tag() {
 
     if [[ $last_tag_date -eq $current_date  ]]; then
         next_tag_rev=$(($last_tag_rev + 1))
-        next_tag_name=$current_date'_'$(printf '%02d' $next_tag_rev) 
+        next_tag_name=$current_date'_'$(printf '%02d' $next_tag_rev)
     else
-        next_tag_name=$current_date'_01' 
+        next_tag_name=$current_date'_01'
     fi
 
     if has_non_tagged_changes ${tags[0]}; then
@@ -107,7 +111,7 @@ function export_diff() {
 
 
 
-    if [ ! $new_release_name ] || [ ! $prev_release_name ]; then 
+    if [ ! $new_release_name ] || [ ! $prev_release_name ]; then
         i=0
         if [ ! $pattern ]; then
             tags=$(svn ls ^/tags | sort -r)
@@ -117,27 +121,27 @@ function export_diff() {
         for file in $tags
         do
             if [ "$i" -eq 0 ]  && [ ! $new_release_name ]; then
-                new_release_name=${file%?}	
+                new_release_name=${file%?}
             fi
             if [ "$i" -eq 1 ] && [ ! $prev_release_name ]; then
                 prev_release_name=${file%?}
                 break
             fi
-            i=$((i+1))	
+            i=$((i+1))
         done
     fi
 
     prev_release_path="^/tags/$prev_release_name"
     new_release_path="^/tags/$new_release_name"
 
-    file_list=$(svn diff --summarize $prev_release_path $new_release_path | grep "^[^D]" | cut -c 9-) 
+    file_list=$(svn diff --summarize $prev_release_path $new_release_path | grep "^[^D]" | cut -c 9-)
     relative_tag_path=${prev_release_path:1}
 
     for file in $file_list
     do
         f=${file/$url_repositorio$relative_tag_path/}
         f=${f:1}
-        
+
         temp=${new_release_path:2}
         exp=$url_repositorio"/"$temp"/"$f
 
@@ -151,4 +155,4 @@ function export_diff() {
 }
 
 # Method Call
-$com 
+$com
